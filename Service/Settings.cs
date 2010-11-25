@@ -78,7 +78,7 @@ namespace Service
 
 		protected void Load(XmlDocument doc)
 		{
-			PublicIp = GetSetting(doc, @"publicIp", (IPAddress)null);
+			PublicIp = GetSetting(doc, @"publicIp", IPAddress.Loopback);
 			TurnUdpPort = GetSetting(doc, @"turnUdpPort", 3478);
 			TurnTcpPort = GetSetting(doc, @"turnTcpPort", 3478);
 			TurnTlsPort = GetSetting(doc, @"turnTlsPort", 443);

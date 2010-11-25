@@ -128,7 +128,7 @@ namespace TestTurnServer
 			message.ComputeMessageLength();
 			message.GetBytes(buffer1, TcpFramingHeader.TcpFramingHeaderLength, key2);
 
-			TcpFramingHeader.GetBytes(buffer1, TcpFrameType.ControlMessage, message.TotalMessageLength);
+			TcpFramingHeader.GetBytes(buffer1, 0, TcpFrameType.ControlMessage, message.TotalMessageLength);
 
 			socket.Send(buffer1, TcpFramingHeader.TcpFramingHeaderLength + message.TotalMessageLength, SocketFlags.None);
 		}
@@ -136,9 +136,10 @@ namespace TestTurnServer
 		private TurnMessage ReceiveMessage(Socket socket)
 		{
 			byte[] buffer1 = new byte[4096];
+			socket.ReceiveTimeout = 10000;
 			int length1 = socket.Receive(buffer1);
 
-			return TurnMessage.Parse(buffer1, TcpFramingHeader.TcpFramingHeaderLength, length1, TurnMessageRfc.MsTurn);
+			return TurnMessage.Parse(buffer1, TcpFramingHeader.TcpFramingHeaderLength, length1 - TcpFramingHeader.TcpFramingHeaderLength, TurnMessageRfc.MsTurn);
 		}
 	}
 }

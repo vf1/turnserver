@@ -15,7 +15,13 @@ namespace Turn.Server
 		private PseudoTlsMessage pseudoTlsMessage = new PseudoTlsMessage();
 		private const int FirstXpacketLength = TcpFramingHeader.TcpFramingHeaderLength;
 
-		bool TurnServer_Received(ServersManager s, ref ServerAsyncEventArgs e)
+		private void TurnServer_NewConnection(ServersManager<Connection> s, Connection c)
+		{
+			c.Phase = TcpPhase.WaitingFirstXpacket;
+			c.BytesExpected = FirstXpacketLength;
+		}
+
+		private bool TurnServer_Received(ServersManager<Connection> s, Connection c, ref ServerAsyncEventArgs e)
 		{
 			if (e.LocalEndPoint.Protocol == ServerIpProtocol.Udp)
 			{
@@ -26,79 +32,121 @@ namespace Turn.Server
 			}
 			else if (e.LocalEndPoint.Protocol == ServerIpProtocol.Tcp)
 			{
-				if (e.ContinueBuffer() == false)
+				if (c.Buffer.IsValid())
 				{
-					TcpPhase phase = (TcpPhase)e.UserToken1;
+					c.Buffer.Resize(Math.Max(4096, c.BytesExpected));
 
-					if (phase == TcpPhase.WaitingFirstXpacket)
+					if (c.Buffer.CopyTransferredFrom(e, 0) == false)
+						return false;
+
+					if (c.Buffer.Count < c.BytesExpected)
+						return true;
+				}
+				else
+				{
+					if (e.BytesTransferred < c.BytesExpected)
+						return c.Buffer.CopyTransferredFrom(e, 0);
+				}
+
+				int proccessed = 0;
+
+				for (; ; )
+				{
+					if (c.Buffer.IsValid())
 					{
-						if (pseudoTlsMessage.IsBeginOfClientHello(e.Buffer, FirstXpacketLength))
+						if (e == null)
 						{
-							e.ContinueBuffer(pseudoTlsMessage.ClientHelloLength);
-							e.UserToken1 = (int)TcpPhase.WaitingClientHello;
-							return true;
+							e = s.BuffersPool.Get();
+							e.CopyAddressesFrom(c);
 						}
-						else
-						{
-							e.UserToken1 = (int)TcpPhase.WaitingTcpFrame;
-						}
+
+						e.SetBufferTransferred(c.Buffer);
+						proccessed = 0;
 					}
 
-					phase = (TcpPhase)e.UserToken1;
+					if (e.BytesTransferred - proccessed < c.BytesExpected)
+						return c.Buffer.CopyTransferredFrom(e, proccessed);
 
-					if (phase == TcpPhase.WaitingClientHello)
+					switch (c.Phase)
 					{
-						if (pseudoTlsMessage.IsClientHello(e.Buffer))
-						{
-							e.SetBuffer(TcpFramingHeader.TcpFramingHeaderLength);
-							e.UserToken1 = (int)TcpPhase.WaitingTcpFrame;
+						case TcpPhase.WaitingFirstXpacket:
 
-							var r = s.BuffersPool.Get();
-							r.SetBuffer(pseudoTlsMessage.ServerHelloHelloDoneLength);
-							r.ConnectionId = ServerAsyncEventArgs.AnyConnectionId;
+							if (pseudoTlsMessage.IsBeginOfClientHello(e.Buffer, e.Offset, FirstXpacketLength))
+							{
+								c.Phase = TcpPhase.WaitingClientHello;
+								c.BytesExpected = PseudoTlsMessage.ClientHelloLength;
+							}
+							else
+							{
+								c.Phase = TcpPhase.WaitingTcpFrame;
+								c.BytesExpected = TcpFramingHeader.TcpFramingHeaderLength;
 
-							pseudoTlsMessage.GetServerHelloHelloDoneBytes(r.Buffer);
+								if (FirstXpacketLength <= TcpFramingHeader.TcpFramingHeaderLength)
+									goto case TcpPhase.WaitingTcpFrame;
+							}
+							break;
 
-							s.SendAsync(r);
-						}
-						else
-						{
-							// close connection
-							return false;
-						}
-					}
-					else if (phase == TcpPhase.WaitingTcpFrame)
-					{
-						TcpFramingHeader tcpHeader;
-						if (TcpFramingHeader.TryParse(e.Buffer, 0, out tcpHeader))
-						{
-							e.SetBuffer(tcpHeader.Length);
-							e.UserToken1 = (int)((tcpHeader.Type == TcpFrameType.ControlMessage) ?
-								TcpPhase.WaitingTurnControlMessage : TcpPhase.WaitingTurnEndToEndData);
-						}
-						else
-						{
-							// close connection
-							return false;
-						}
-					}
-					else if (phase == TcpPhase.WaitingTurnControlMessage)
-					{
-						TurnServer_TurnDataReceived(ref e);
 
-						e.SetBuffer(TcpFramingHeader.TcpFramingHeaderLength);
-						e.UserToken1 = (int)TcpPhase.WaitingTcpFrame;
-					}
-					else if (phase == TcpPhase.WaitingTurnEndToEndData)
-					{
-						TurnServer_PeerDataReceived(ref e);
+						case TcpPhase.WaitingClientHello:
 
-						e.SetBuffer(TcpFramingHeader.TcpFramingHeaderLength);
-						e.UserToken1 = (int)TcpPhase.WaitingTcpFrame;
-					}
-					else
-					{
-						throw new InvalidOperationException();
+							if (pseudoTlsMessage.IsClientHello(e.Buffer, e.Offset) == false)
+								return false;
+
+							var x = s.BuffersPool.Get();
+
+							x.CopyAddressesFrom(e);
+							x.SetBuffer(proccessed, PseudoTlsMessage.ServerHelloHelloDoneLength);
+
+							pseudoTlsMessage.GetServerHelloHelloDoneBytes(x.Buffer);
+
+							s.SendAsync(x);
+
+							proccessed += c.BytesExpected;
+							c.Phase = TcpPhase.WaitingTcpFrame;
+							c.BytesExpected = TcpFramingHeader.TcpFramingHeaderLength;
+
+							break;
+
+
+						case TcpPhase.WaitingTcpFrame:
+
+							TcpFramingHeader tcpHeader;
+							if (TcpFramingHeader.TryParse(e.Buffer, e.Offset, out tcpHeader) == false)
+								return false;
+
+							proccessed += c.BytesExpected;
+							c.Phase = (tcpHeader.Type == TcpFrameType.ControlMessage) ?
+								TcpPhase.WaitingTurnControlMessage : TcpPhase.WaitingTurnEndToEndData;
+							c.BytesExpected = tcpHeader.Length;
+
+							break;
+
+
+
+						case TcpPhase.WaitingTurnEndToEndData:
+						case TcpPhase.WaitingTurnControlMessage:
+
+							if (e.BytesTransferred - proccessed < c.BytesExpected)
+								if (c.Buffer.CopyTransferredFrom(e, proccessed + c.BytesExpected) == false)
+									return false;
+
+							e.ResizeBufferTransfered(e.Offset + proccessed, c.BytesExpected);
+
+							if (c.Phase == TcpPhase.WaitingTurnEndToEndData)
+								TurnServer_PeerDataReceived(ref e);
+							else
+								TurnServer_TurnDataReceived(ref e);
+
+							proccessed = e.BytesTransferred;
+
+							c.Phase = TcpPhase.WaitingTcpFrame;
+							c.BytesExpected = TcpFramingHeader.TcpFramingHeaderLength;
+
+							break;
+
+
+						default:
+							throw new NotImplementedException();
 					}
 				}
 			}
@@ -106,15 +154,6 @@ namespace Turn.Server
 				throw new NotImplementedException();
 
 			return true;
-		}
-
-		enum TcpPhase
-		{
-			WaitingFirstXpacket = ServerAsyncEventArgs.DefaultUserToken1,
-			WaitingClientHello,
-			WaitingTcpFrame,
-			WaitingTurnControlMessage,
-			WaitingTurnEndToEndData,
 		}
 	}
 }

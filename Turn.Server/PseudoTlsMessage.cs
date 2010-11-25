@@ -8,7 +8,20 @@ namespace Turn.Server
 		private DateTime originDateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0);
 		private Random random = new Random(Environment.TickCount);
 		private byte[] randomValue = new byte[28];
-		
+
+		public const int ServerHelloHelloDoneLength = 83;
+		public const int ClientHelloLength = 50;
+
+		public PseudoTlsMessage()
+		{
+#if DEBUG
+			if (clientHelloTemplate.Length != ClientHelloLength)
+				throw new InvalidProgramException("Incorrect PseudoTlsMessage.ClientHelloLength");
+			if (serverHelloHelloDoneTemplate.Length != ServerHelloHelloDoneLength)
+				throw new InvalidProgramException("Incorrect PseudoTlsMessage.ServerHelloHelloDoneLength");
+#endif
+		}
+
 		private byte[] serverHelloHelloDoneTemplate = new byte[]
 		{
 			0x16, 0x03, 0x01, 0x00,
@@ -57,22 +70,6 @@ namespace Turn.Server
 			0x01, 0x00, 
 		};
 
-		public int ServerHelloHelloDoneLength
-		{
-			get
-			{
-				return serverHelloHelloDoneTemplate.Length;
-			}
-		}
-
-		public int ClientHelloLength
-		{
-			get
-			{
-				return clientHelloTemplate.Length;
-			}
-		}
-
 		public void GetServerHelloHelloDoneBytes(byte[] bytes)
 		{
 			lock (sync)
@@ -88,17 +85,17 @@ namespace Turn.Server
 			}
 		}
 
-		public bool IsClientHello(byte[] bytes)
+		public bool IsClientHello(byte[] bytes, int offset)
 		{
-			return IsBeginOfClientHello(bytes, clientHelloTemplate.Length);
+			return IsBeginOfClientHello(bytes, offset, clientHelloTemplate.Length);
 		}
 
-		public bool IsBeginOfClientHello(byte[] bytes, int length)
+		public bool IsBeginOfClientHello(byte[] bytes, int offset, int verifyLength)
 		{
-			for (int i = 0; i < length; i++)
+			for (int i = 0; i < verifyLength; i++)
 			{
 				if (clientHelloTemplate[i] != 0xff)
-					if (clientHelloTemplate[i] != bytes[i])
+					if (clientHelloTemplate[i] != bytes[offset + i])
 						return false;
 			}
 

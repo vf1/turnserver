@@ -2,7 +2,7 @@
 
 namespace Turn.Server
 {
-	class TcpFramingHeader
+	struct TcpFramingHeader
 	{
 		public const int TcpFramingHeaderLength = 4;
 
@@ -22,16 +22,16 @@ namespace Turn.Server
 			}
 			catch
 			{
-				header = null;
+				header = default(TcpFramingHeader);
 				return false;
 			}
 		}
 
-		public static void GetBytes(byte[] bytes, TcpFrameType frameType, int length)
+		public static void GetBytes(byte[] bytes, int offset, TcpFrameType frameType, int length)
 		{
-			bytes[0] = (byte)frameType;
-			bytes[1] = 0;
-			Array.Copy(((UInt16)length).GetBigendianBytes(), 0, bytes, 2, 2);
+			bytes[offset + 0] = (byte)frameType;
+			bytes[offset + 1] = 0;
+			Array.Copy(((UInt16)length).GetBigendianBytes(), 0, bytes, offset + 2, 2);
 		}
 	}
 }

@@ -9,7 +9,6 @@ namespace Service
 {
 	public class Service1 
 		: ServiceBase
-		, Turn.Server.ILogger
 	{
 		private Settings settings;
 		private Turn.Server.TurnServer turnServer;
@@ -159,7 +158,6 @@ namespace Service
 						Key1 = settings.Key1,
 						Key2 = settings.Key2,
 					},
-					Logger = this,
 				};
 
 				turnServer.Start();
@@ -253,20 +251,6 @@ namespace Service
 				fileLog = null;
 			}
 		}
-
-		#region ILogger [ WriteWarning, WriteError ]
-
-		public void WriteWarning(string warning)
-		{
-			WriteLogEntry(warning, EventLogEntryType.Warning);
-		}
-
-		public void WriteError(string error)
-		{
-			WriteLogEntry(error, EventLogEntryType.Error);
-		}
-
-		#endregion
 
 		private string GetAppPath(string filename)
 		{
