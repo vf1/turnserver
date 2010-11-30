@@ -60,7 +60,7 @@ namespace Turn.Server
 							e.CopyAddressesFrom(c);
 						}
 
-						e.SetBufferTransferred(c.Buffer);
+						e.AttachBuffer(c.Buffer);
 						proccessed = 0;
 					}
 
@@ -95,9 +95,9 @@ namespace Turn.Server
 							var x = s.BuffersPool.Get();
 
 							x.CopyAddressesFrom(e);
-							x.SetBuffer(proccessed, PseudoTlsMessage.ServerHelloHelloDoneLength);
+							x.Count = PseudoTlsMessage.ServerHelloHelloDoneLength;
 
-							pseudoTlsMessage.GetServerHelloHelloDoneBytes(x.Buffer);
+							pseudoTlsMessage.GetServerHelloHelloDoneBytes(x.Buffer, x.Offset);
 
 							s.SendAsync(x);
 
@@ -130,7 +130,8 @@ namespace Turn.Server
 								if (c.Buffer.CopyTransferredFrom(e, proccessed + c.BytesExpected) == false)
 									return false;
 
-							e.ResizeBufferTransfered(e.Offset + proccessed, c.BytesExpected);
+							e.Offset += proccessed;
+							e.BytesTransferred = c.BytesExpected;
 
 							if (c.Phase == TcpPhase.WaitingTurnEndToEndData)
 								TurnServer_PeerDataReceived(ref e);

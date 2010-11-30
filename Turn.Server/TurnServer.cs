@@ -127,7 +127,7 @@ namespace Turn.Server
 						{
 							e.LocalEndPoint = allocation.Alocated;
 							e.RemoteEndPoint = allocation.ActiveDestination;
-							e.SetBuffer(e.Offset, e.BytesTransferred);
+							e.Count = e.BytesTransferred;
 							e.ConnectionId = ServerAsyncEventArgs.AnyNewConnectionId;
 
 							peerServer.SendAsync(e);
@@ -162,11 +162,13 @@ namespace Turn.Server
 								if (e.LocalEndPoint.Protocol == ServerIpProtocol.Tcp)
 								{
 									TcpFramingHeader.GetBytes(e.Buffer, e.Offset, TcpFrameType.EndToEndData, e.BytesTransferred);
-									e.SetBuffer(0, e.OffsetOffset + e.BytesTransferred);
+
+									e.OffsetOffset = 0;
+									e.Count = e.OffsetOffset + e.BytesTransferred;
 								}
 								else
 								{
-									e.SetBuffer(e.OffsetOffset, e.BytesTransferred);
+									e.Count = e.BytesTransferred;
 								}
 
 								e.LocalEndPoint = allocation.Local;
@@ -317,7 +319,8 @@ namespace Turn.Server
 
 				e.LocalEndPoint = allocation.Alocated;
 				e.RemoteEndPoint = request.DestinationAddress.IpEndPoint;
-				e.SetBuffer(request.Data.ValueRefOffset, request.Data.ValueRefLength);
+				e.Offset = request.Data.ValueRefOffset;
+				e.Count = request.Data.ValueRefLength;
 				e.ConnectionId = ServerAsyncEventArgs.AnyNewConnectionId;
 
 				peerServer.SendAsync(e);
@@ -404,7 +407,7 @@ namespace Turn.Server
 			e.ConnectionId = ServerAsyncEventArgs.AnyConnectionId;
 			e.LocalEndPoint = local;
 			e.RemoteEndPoint = remote;
-			e.SetBuffer(0, headerLength + length);
+			e.Count = headerLength + length;
 
 			if (headerLength > 0)
 				TcpFramingHeader.GetBytes(e.Buffer, e.Offset, TcpFrameType.ControlMessage, length);
@@ -426,7 +429,7 @@ namespace Turn.Server
 			message.ComputeMessageLength();
 
 			GetBuffer(local, remote, message.TotalMessageLength, out p, out offset);
-			
+
 			message.GetBytes(p.Buffer, offset, Authentificater.Key2);
 
 			turnServer.SendAsync(p);
@@ -475,11 +478,11 @@ namespace Turn.Server
 				turnServer.Start();
 
 				peerServer = new ServersManager<BaseConnection>(
-					new ServersManagerConfig() 
+					new ServersManagerConfig()
 					{
-						MinPort = MinPort, 
-						MaxPort = MaxPort, 
-						TcpOffsetOffset = TcpFramingHeader.TcpFramingHeaderLength, 
+						MinPort = MinPort,
+						MaxPort = MaxPort,
+						TcpOffsetOffset = TcpFramingHeader.TcpFramingHeaderLength,
 					});
 				peerServer.AddressPredicate =
 					(NetworkInterface i, IPInterfaceProperties ip, UnicastIPAddressInformation ai) =>

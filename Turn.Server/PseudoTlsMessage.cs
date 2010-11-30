@@ -70,32 +70,33 @@ namespace Turn.Server
 			0x01, 0x00, 
 		};
 
-		public void GetServerHelloHelloDoneBytes(byte[] bytes)
+		public void GetServerHelloHelloDoneBytes(byte[] bytes, int startIndex)
 		{
 			lock (sync)
 			{
-				Array.Copy(serverHelloHelloDoneTemplate, bytes, serverHelloHelloDoneTemplate.Length);
+				Array.Copy(serverHelloHelloDoneTemplate, 0,
+					bytes, startIndex, serverHelloHelloDoneTemplate.Length);
 
 				Array.Copy(BitConverter.GetBytes((Int32)Math.Floor((DateTime.UtcNow - originDateTime).TotalSeconds)),
-					0, bytes, 11, 4);
+					0, bytes, startIndex + 11, 4);
 
 				random.NextBytes(randomValue);
 
-				Array.Copy(randomValue, 0, bytes, 15, 28);
+				Array.Copy(randomValue, 0, bytes, startIndex + 15, 28);
 			}
 		}
 
-		public bool IsClientHello(byte[] bytes, int offset)
+		public bool IsClientHello(byte[] bytes, int startIndex)
 		{
-			return IsBeginOfClientHello(bytes, offset, clientHelloTemplate.Length);
+			return IsBeginOfClientHello(bytes, startIndex, clientHelloTemplate.Length);
 		}
 
-		public bool IsBeginOfClientHello(byte[] bytes, int offset, int verifyLength)
+		public bool IsBeginOfClientHello(byte[] bytes, int startIndex, int verifyLength)
 		{
 			for (int i = 0; i < verifyLength; i++)
 			{
 				if (clientHelloTemplate[i] != 0xff)
-					if (clientHelloTemplate[i] != bytes[offset + i])
+					if (clientHelloTemplate[i] != bytes[startIndex + i])
 						return false;
 			}
 
