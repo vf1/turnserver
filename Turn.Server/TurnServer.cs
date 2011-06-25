@@ -21,9 +21,12 @@ namespace Turn.Server
 		private HMACSHA1 conIdSha1;
 		private UTF8Encoding conIdUtf8;
 
-		public TurnServer()
+		private ILogger logger;
+
+		public TurnServer(ILogger logger)
 		{
-			syncRoot = new object();
+			this.syncRoot = new object();
+			this.logger = logger ?? new NullLogger();
 		}
 
 		public int TurnUdpPort { get; set; }
@@ -31,6 +34,7 @@ namespace Turn.Server
 		public int TurnPseudoTlsPort { get; set; }
 		public Authentificater Authentificater { get; set; }
 		public IPAddress PublicIp { get; set; }
+		public IPAddress RealIp { get; set; }
 		public int MinPort { get; set; }
 		public int MaxPort { get; set; }
 
@@ -76,7 +80,7 @@ namespace Turn.Server
 										break;
 
 									case MessageType.SetActiveDestinationRequest:
-										response = ProcessSetActiveDestinationRequest(allocation, request, e.RemoteEndPoint as IPEndPoint);
+										response = ProcessSetActiveDestinationRequest(allocation, request, e.RemoteEndPoint);
 										break;
 								}
 
@@ -103,7 +107,7 @@ namespace Turn.Server
 				{
 					response = GetErrorResponse(ErrorCode.ServerError, e);
 
-					//Logger.WriteError(ex.ToString());
+					logger.WriteError(ex.ToString());
 				}
 
 				if (response != null)
@@ -138,7 +142,7 @@ namespace Turn.Server
 				}
 				catch (Exception ex)
 				{
-					//Logger.WriteWarning(ex.ToString());
+					logger.WriteWarning(ex.ToString());
 				}
 			}
 		}
@@ -159,12 +163,12 @@ namespace Turn.Server
 
 							if (allocation.ActiveDestination.IsEqual(e.RemoteEndPoint))
 							{
-								if (e.LocalEndPoint.Protocol == ServerIpProtocol.Tcp)
+								if (e.LocalEndPoint.Protocol == ServerProtocol.Tcp)
 								{
 									TcpFramingHeader.GetBytes(e.Buffer, e.Offset, TcpFrameType.EndToEndData, e.BytesTransferred);
 
-									e.OffsetOffset = 0;
 									e.Count = e.OffsetOffset + e.BytesTransferred;
+									e.OffsetOffset = 0;
 								}
 								else
 								{
@@ -210,7 +214,7 @@ namespace Turn.Server
 				}
 				catch (Exception ex)
 				{
-					//Logger.WriteWarning(ex.ToString());
+					logger.WriteWarning(ex.ToString());
 				}
 			}
 
@@ -231,13 +235,16 @@ namespace Turn.Server
 				if (allocation != null)
 				{
 					allocation.Lifetime = lifetime;
+
+					if (lifetime == 0)
+						logger.WriteInformation(string.Format("Update Allocation: {2} seconds {0} <--> {1}", allocation.Alocated.ToString(), allocation.Reflexive.ToString(), lifetime));
 				}
 				else
 				{
 					if (lifetime <= 0)
 						throw new TurnServerException(ErrorCode.NoBinding);
 
-					ProtocolPort pp = new ProtocolPort() { Protocol = ServerIpProtocol.Tcp, };
+					ProtocolPort pp = new ProtocolPort() { Protocol = local.Protocol, };
 					if (peerServer.Bind(ref pp) != SocketError.Success)
 						throw new TurnServerException(ErrorCode.ServerError);
 
@@ -248,16 +255,15 @@ namespace Turn.Server
 
 						Local = local,
 						Alocated = new ServerEndPoint(pp, PublicIp),
-						Reflexive = remote,
+						Real = new ServerEndPoint(pp, RealIp),
+						Reflexive = new IPEndPoint(remote.Address, remote.Port),
 
 						Lifetime = lifetime,
 					};
 
-					var oldAllocation = allocations.GetByTurn(allocation.Local, allocation.Reflexive);
-					if (oldAllocation != null)
-						allocations.Remove(oldAllocation);
+					allocations.Replace(allocation);
 
-					allocations.Add(allocation);
+					logger.WriteInformation(string.Format("Allocated: {0} <--> {1}", allocation.Alocated.ToString(), allocation.Reflexive.ToString()));
 				}
 			}
 
@@ -329,7 +335,7 @@ namespace Turn.Server
 			}
 			catch (Exception ex)
 			{
-				//Logger.WriteWarning(ex.ToString());
+				logger.WriteWarning(ex.ToString());
 			}
 
 			// [MS-TURN] The server MUST NOT respond to a client with either 
@@ -346,6 +352,9 @@ namespace Turn.Server
 				throw new TurnServerException(ErrorCode.BadRequest);
 
 			allocation.ActiveDestination = request.DestinationAddress.IpEndPoint;
+			allocation.Permissions.Permit(request.DestinationAddress.IpEndPoint);
+
+			logger.WriteInformation(string.Format("Set Active Destination: {2} --> {0} <--> {1}", allocation.Alocated.ToString(), allocation.Reflexive.ToString(), allocation.ActiveDestination.ToString()));
 
 			return new TurnMessage()
 			{
@@ -378,8 +387,8 @@ namespace Turn.Server
 
 		private TurnMessage GetErrorResponse(ErrorCode errorCode, SocketAsyncEventArgs e)
 		{
-			MessageType? messageType = TurnMessage.SafeGetMessageType(e.Buffer, e.Count, 0);
-			TransactionId id = TurnMessage.SafeGetTransactionId(e.Buffer, e.Count);
+			MessageType? messageType = TurnMessage.SafeGetMessageType(e.Buffer, e.Offset, e.Count);
+			TransactionId id = TurnMessage.SafeGetTransactionId(e.Buffer, e.Offset, e.Count);
 
 			if (messageType != null && id != null)
 			{
@@ -400,7 +409,7 @@ namespace Turn.Server
 
 		private void GetBuffer(ServerEndPoint local, IPEndPoint remote, int length, out ServerAsyncEventArgs e, out int offset)
 		{
-			int headerLength = (local.Protocol == ServerIpProtocol.Tcp) ? TcpFramingHeader.TcpFramingHeaderLength : 0;
+			int headerLength = (local.Protocol == ServerProtocol.Tcp) ? TcpFramingHeader.TcpFramingHeaderLength : 0;
 
 			e = turnServer.BuffersPool.Get();
 
@@ -408,6 +417,7 @@ namespace Turn.Server
 			e.LocalEndPoint = local;
 			e.RemoteEndPoint = remote;
 			e.Count = headerLength + length;
+			e.AllocateBuffer();
 
 			if (headerLength > 0)
 				TcpFramingHeader.GetBytes(e.Buffer, e.Offset, TcpFrameType.ControlMessage, length);
@@ -417,8 +427,8 @@ namespace Turn.Server
 
 		private void PeerSendAsync_Completed(Socket socket, SocketAsyncEventArgs e)
 		{
-			//if (e.SocketError != SocketError.Success)
-			//	Logger.WriteWarning(String.Format(@"SendPeer Failed\r\nSocket Type {0}:\r\nError: {1}", socket.SocketType.ToString(), e.ToString()));
+			if (e.SocketError != SocketError.Success)
+				logger.WriteWarning(String.Format(@"SendPeer Failed\r\nSocket Type {0}:\r\nError: {1}", socket.SocketType.ToString(), e.ToString()));
 		}
 
 		private void SendTurn(TurnMessage message, ServerEndPoint local, IPEndPoint remote)
@@ -437,8 +447,8 @@ namespace Turn.Server
 
 		private void SendTurnAsync_Completed(Socket socket, SocketAsyncEventArgs e)
 		{
-			//if (e.SocketError != SocketError.Success)
-			//	Logger.WriteWarning(String.Format(@"SendTurn Failed\r\nSocket Type {0}:\r\nError: {1}", socket.SocketType.ToString(), e.ToString()));
+			if (e.SocketError != SocketError.Success)
+				logger.WriteWarning(String.Format(@"SendTurn Failed\r\nSocket Type {0}:\r\nError: {1}", socket.SocketType.ToString(), e.ToString()));
 		}
 
 		private ConnectionId GenerateConnectionId(ServerEndPoint reflexive, IPEndPoint local)
@@ -470,9 +480,9 @@ namespace Turn.Server
 				allocations.Removed += Allocation_Removed;
 
 				turnServer = new ServersManager<Connection>(new ServersManagerConfig());
-				turnServer.Bind(new ProtocolPort() { Protocol = ServerIpProtocol.Udp, Port = TurnUdpPort, });
-				turnServer.Bind(new ProtocolPort() { Protocol = ServerIpProtocol.Tcp, Port = TurnTcpPort, });
-				turnServer.Bind(new ProtocolPort() { Protocol = ServerIpProtocol.Tcp, Port = TurnPseudoTlsPort, });
+				turnServer.Bind(new ProtocolPort() { Protocol = ServerProtocol.Udp, Port = TurnUdpPort, });
+				turnServer.Bind(new ProtocolPort() { Protocol = ServerProtocol.Tcp, Port = TurnTcpPort, });
+				turnServer.Bind(new ProtocolPort() { Protocol = ServerProtocol.Tcp, Port = TurnPseudoTlsPort, });
 				turnServer.NewConnection += TurnServer_NewConnection;
 				turnServer.Received += TurnServer_Received;
 				turnServer.Start();
@@ -484,9 +494,7 @@ namespace Turn.Server
 						MaxPort = MaxPort,
 						TcpOffsetOffset = TcpFramingHeader.TcpFramingHeaderLength,
 					});
-				peerServer.AddressPredicate =
-					(NetworkInterface i, IPInterfaceProperties ip, UnicastIPAddressInformation ai) =>
-					{ return ai.Address.Equals(PublicIp); };
+				peerServer.AddressPredicate = (i, ip, ai) => { return ai.Address.Equals(RealIp); };
 				peerServer.Received += PeerServer_Received;
 				peerServer.Start();
 			}

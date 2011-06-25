@@ -26,6 +26,7 @@ namespace Turn.Server
 
 		public ServerEndPoint Local { get; set; }
 		public ServerEndPoint Alocated { get; set; }
+		public ServerEndPoint Real { get; set; }
 		public IPEndPoint Reflexive { get; set; }
 
 

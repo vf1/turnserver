@@ -8,6 +8,7 @@ namespace Service
 	class Settings
 	{
 		private string pathName;
+		private IPAddress realIp;
 
 		public Settings(string pathName)
 		{
@@ -35,7 +36,7 @@ namespace Service
 
 		public void Save()
 		{
-			var writer = XmlWriter.Create(pathName, 
+			var writer = XmlWriter.Create(pathName,
 				new XmlWriterSettings() { Indent = true, IndentChars = @"    " });
 
 			writer.WriteStartElement(@"settings");
@@ -53,7 +54,7 @@ namespace Service
 			writer.WriteElementString(@"adminPass", AdminPass);
 
 			writer.WriteEndElement();
-			
+
 			writer.Flush();
 			writer.Close();
 		}
@@ -76,9 +77,21 @@ namespace Service
 		public string AdminName { get; set; }
 		public string AdminPass { get; set; }
 
+		public IPAddress RealIp
+		{
+			get
+			{
+				if (realIp != IPAddress.None)
+					return realIp;
+				return PublicIp;
+			}
+			set { realIp = value; }
+		}
+
 		protected void Load(XmlDocument doc)
 		{
 			PublicIp = GetSetting(doc, @"publicIp", IPAddress.Loopback);
+			RealIp = GetSetting(doc, @"realIp", IPAddress.None);
 			TurnUdpPort = GetSetting(doc, @"turnUdpPort", 3478);
 			TurnTcpPort = GetSetting(doc, @"turnTcpPort", 3478);
 			TurnTlsPort = GetSetting(doc, @"turnTlsPort", 443);

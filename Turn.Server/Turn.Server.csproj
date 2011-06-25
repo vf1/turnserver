@@ -31,9 +31,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="SocketServers, Version=1.4.3800.27034, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="SocketServers, Version=2.10.4171.24162, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\SVN\SocketServers\SocketServer\bin\Release\SocketServers.dll</HintPath>
+      <HintPath>..\..\SocketServers\SocketServer\bin\Release\SocketServers.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">
@@ -52,6 +52,7 @@
     <Compile Include="Connection.cs" />
     <Compile Include="ConnectionId.cs" />
     <Compile Include="Enums.cs" />
+    <Compile Include="ILogger.cs" />
     <Compile Include="PermissionsList.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PseudoTlsMessage.cs" />

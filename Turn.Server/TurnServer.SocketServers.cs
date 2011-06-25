@@ -23,16 +23,16 @@ namespace Turn.Server
 
 		private bool TurnServer_Received(ServersManager<Connection> s, Connection c, ref ServerAsyncEventArgs e)
 		{
-			if (e.LocalEndPoint.Protocol == ServerIpProtocol.Udp)
+			if (e.LocalEndPoint.Protocol == ServerProtocol.Udp)
 			{
-				if (TurnMessage.IsTurnMessage(e.Buffer, 0, e.BytesTransferred))
+				if (TurnMessage.IsTurnMessage(e.Buffer, e.Offset, e.BytesTransferred))
 					TurnServer_TurnDataReceived(ref e);
 				else
 					TurnServer_PeerDataReceived(ref e);
 			}
-			else if (e.LocalEndPoint.Protocol == ServerIpProtocol.Tcp)
+			else if (e.LocalEndPoint.Protocol == ServerProtocol.Tcp)
 			{
-				if (c.Buffer.IsValid())
+				if (c.Buffer.IsValid)
 				{
 					c.Buffer.Resize(Math.Max(4096, c.BytesExpected));
 
@@ -52,7 +52,7 @@ namespace Turn.Server
 
 				for (; ; )
 				{
-					if (c.Buffer.IsValid())
+					if (c.Buffer.IsValid)
 					{
 						if (e == null)
 						{
@@ -130,6 +130,7 @@ namespace Turn.Server
 								if (c.Buffer.CopyTransferredFrom(e, proccessed + c.BytesExpected) == false)
 									return false;
 
+							e.Count -= proccessed;
 							e.Offset += proccessed;
 							e.BytesTransferred = c.BytesExpected;
 

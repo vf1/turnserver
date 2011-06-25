@@ -26,7 +26,7 @@ namespace TestTurnServer
 		[SetUp()]
 		public void CreateTurnServer()
 		{
-			turnServer = new Turn.Server.TurnServer()
+			turnServer = new Turn.Server.TurnServer(null)
 			{
 				TurnUdpPort = udpPort,
 				TurnTcpPort = tcpPort,
@@ -130,7 +130,9 @@ namespace TestTurnServer
 
 			TcpFramingHeader.GetBytes(buffer1, 0, TcpFrameType.ControlMessage, message.TotalMessageLength);
 
-			socket.Send(buffer1, TcpFramingHeader.TcpFramingHeaderLength + message.TotalMessageLength, SocketFlags.None);
+			int size = TcpFramingHeader.TcpFramingHeaderLength + message.TotalMessageLength;
+			if (socket.Send(buffer1, size, SocketFlags.None) != size)
+				throw new Exception("Send failed!");
 		}
 
 		private TurnMessage ReceiveMessage(Socket socket)

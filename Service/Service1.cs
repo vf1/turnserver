@@ -7,8 +7,9 @@ using System.Text;
 
 namespace Service
 {
-	public class Service1 
+	public class Service1
 		: ServiceBase
+		, Turn.Server.ILogger
 	{
 		private Settings settings;
 		private Turn.Server.TurnServer turnServer;
@@ -66,9 +67,9 @@ namespace Service
 			{
 				try
 				{
-					fileLog = new FileStream(GetAppPath(ServiceName.Replace(' ', '.') + @".log"), 
+					fileLog = new FileStream(GetAppPath(ServiceName.Replace(' ', '.') + @".log"),
 						FileMode.Create, FileAccess.Write, FileShare.Read);
-					
+
 					Start2();
 
 					while (mutex2.WaitOne(0))
@@ -115,7 +116,7 @@ namespace Service
 				string wcfServiceUri = @"net.tcp://localhost:10002/officesip.turn.server.n1";
 
 				WriteLogEntry(
-					String.Format("Starting WCF Service\r\nService Uri: {0}", wcfServiceUri), 
+					String.Format("Starting WCF Service\r\nService Uri: {0}", wcfServiceUri),
 					EventLogEntryType.Information);
 
 				wcfService = new WcfService.WcfTurnService()
@@ -131,7 +132,7 @@ namespace Service
 
 				WriteLogEntry("WCF Service started.", EventLogEntryType.Information);
 			}
-			catch(Exception ex)
+			catch (Exception ex)
 			{
 				WriteLogEntry("Failed to start WCF service: " + ex.ToString(), EventLogEntryType.Error);
 			}
@@ -140,16 +141,17 @@ namespace Service
 			{
 				WriteLogEntry(
 					String.Format("Starting TurnServer\r\nTurn UDP Port: {0}\r\nTurn TCP Port: {1}\r\nTurn TLS Port: {2}\r\nPublic IP and Ports Range: {3}:{4}-{5}\r\nRealm: {6}",
-					settings.TurnUdpPort, settings.TurnTcpPort, settings.TurnTlsPort, 
+					settings.TurnUdpPort, settings.TurnTcpPort, settings.TurnTlsPort,
 					settings.PublicIp, settings.MinPort, settings.MaxPort, settings.Realm),
 					EventLogEntryType.Information);
 
-				turnServer = new Turn.Server.TurnServer()
+				turnServer = new Turn.Server.TurnServer(this)
 				{
 					TurnUdpPort = settings.TurnUdpPort,
 					TurnTcpPort = settings.TurnTcpPort,
 					TurnPseudoTlsPort = settings.TurnTlsPort,
 					PublicIp = settings.PublicIp,
+					RealIp = settings.RealIp,
 					MinPort = settings.MinPort,
 					MaxPort = settings.MaxPort,
 					Authentificater = new Turn.Server.Authentificater()
@@ -250,6 +252,21 @@ namespace Service
 			{
 				fileLog = null;
 			}
+		}
+
+		void Turn.Server.ILogger.WriteError(string message)
+		{
+			WriteLogEntry(message, EventLogEntryType.Error);
+		}
+
+		void Turn.Server.ILogger.WriteWarning(string message)
+		{
+			WriteLogEntry(message, EventLogEntryType.Warning);
+		}
+
+		void Turn.Server.ILogger.WriteInformation(string message)
+		{
+			WriteLogEntry(message, EventLogEntryType.Information);
 		}
 
 		private string GetAppPath(string filename)

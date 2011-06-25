@@ -17,5 +17,24 @@ namespace Turn.Server
 	{
 		public TcpPhase Phase;
 		public int BytesExpected;
+		private StreamBuffer buffer;
+
+		public new void Dispose()
+		{
+			base.Dispose();
+
+			if (buffer != null)
+				buffer.Dispose();
+		}
+
+		public StreamBuffer Buffer
+		{
+			get
+			{
+				if (buffer == null)
+					buffer = new StreamBuffer();
+				return buffer;
+			}
+		}
 	}
 }
