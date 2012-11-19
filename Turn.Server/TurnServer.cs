@@ -13,8 +13,8 @@ namespace Turn.Server
 	public partial class TurnServer
 	{
 		private object syncRoot;
-		private ServersManager<Connection> turnServer;
-		private ServersManager<BaseConnection> peerServer;
+		private ServersManager<TurnConnection> turnServer;
+		private ServersManager<PeerConnection> peerServer;
 
 		private AllocationsPool allocations;
 
@@ -147,7 +147,7 @@ namespace Turn.Server
 			}
 		}
 
-		private bool PeerServer_Received(ServersManager<BaseConnection> s, BaseConnection с, ref ServerAsyncEventArgs e)
+		private bool PeerServer_Received(ServersManager<PeerConnection> s, BaseConnection с, ref ServerAsyncEventArgs e)
 		{
 			lock (syncRoot)
 			{
@@ -411,7 +411,7 @@ namespace Turn.Server
 		{
 			int headerLength = (local.Protocol == ServerProtocol.Tcp) ? TcpFramingHeader.TcpFramingHeaderLength : 0;
 
-			e = turnServer.BuffersPool.Get();
+			e = EventArgsManager.Get();
 
 			e.ConnectionId = ServerAsyncEventArgs.AnyConnectionId;
 			e.LocalEndPoint = local;
@@ -479,7 +479,9 @@ namespace Turn.Server
 				allocations = new AllocationsPool();
 				allocations.Removed += Allocation_Removed;
 
-				turnServer = new ServersManager<Connection>(new ServersManagerConfig());
+				ServerAsyncEventArgs.DefaultOffsetOffset = TcpFramingHeader.TcpFramingHeaderLength;
+
+				turnServer = new ServersManager<TurnConnection>(new ServersManagerConfig());
 				turnServer.Bind(new ProtocolPort() { Protocol = ServerProtocol.Udp, Port = TurnUdpPort, });
 				turnServer.Bind(new ProtocolPort() { Protocol = ServerProtocol.Tcp, Port = TurnTcpPort, });
 				turnServer.Bind(new ProtocolPort() { Protocol = ServerProtocol.Tcp, Port = TurnPseudoTlsPort, });
@@ -487,12 +489,11 @@ namespace Turn.Server
 				turnServer.Received += TurnServer_Received;
 				turnServer.Start();
 
-				peerServer = new ServersManager<BaseConnection>(
+				peerServer = new ServersManager<PeerConnection>(
 					new ServersManagerConfig()
 					{
 						MinPort = MinPort,
 						MaxPort = MaxPort,
-						TcpOffsetOffset = TcpFramingHeader.TcpFramingHeaderLength,
 					});
 				peerServer.AddressPredicate = (i, ip, ai) => { return ai.Address.Equals(RealIp); };
 				peerServer.Received += PeerServer_Received;

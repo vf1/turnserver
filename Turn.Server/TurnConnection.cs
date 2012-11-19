@@ -12,14 +12,15 @@ namespace Turn.Server
 		WaitingTurnEndToEndData,
 	}
 
-	class Connection
+	class TurnConnection
 		: BaseConnection
+		, IDisposable
 	{
 		public TcpPhase Phase;
 		public int BytesExpected;
 		private StreamBuffer buffer;
 
-		public new void Dispose()
+		void IDisposable.Dispose()
 		{
 			base.Dispose();
 

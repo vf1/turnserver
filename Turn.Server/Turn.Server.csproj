@@ -49,10 +49,11 @@
     <Compile Include="AllocationsPool.cs" />
     <Compile Include="Authentificater.cs" />
     <Compile Include="Authentificater.NonceDescriptor.cs" />
-    <Compile Include="Connection.cs" />
+    <Compile Include="TurnConnection.cs" />
     <Compile Include="ConnectionId.cs" />
     <Compile Include="Enums.cs" />
     <Compile Include="ILogger.cs" />
+    <Compile Include="PeerConnection.cs" />
     <Compile Include="PermissionsList.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PseudoTlsMessage.cs" />

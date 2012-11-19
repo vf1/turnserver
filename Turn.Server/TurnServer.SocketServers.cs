@@ -15,13 +15,13 @@ namespace Turn.Server
 		private PseudoTlsMessage pseudoTlsMessage = new PseudoTlsMessage();
 		private const int FirstXpacketLength = TcpFramingHeader.TcpFramingHeaderLength;
 
-		private void TurnServer_NewConnection(ServersManager<Connection> s, Connection c)
+		private void TurnServer_NewConnection(ServersManager<TurnConnection> s, TurnConnection c)
 		{
 			c.Phase = TcpPhase.WaitingFirstXpacket;
 			c.BytesExpected = FirstXpacketLength;
 		}
 
-		private bool TurnServer_Received(ServersManager<Connection> s, Connection c, ref ServerAsyncEventArgs e)
+		private bool TurnServer_Received(ServersManager<TurnConnection> s, TurnConnection c, ref ServerAsyncEventArgs e)
 		{
 			if (e.LocalEndPoint.Protocol == ServerProtocol.Udp)
 			{
@@ -56,7 +56,7 @@ namespace Turn.Server
 					{
 						if (e == null)
 						{
-							e = s.BuffersPool.Get();
+							e = EventArgsManager.Get();
 							e.CopyAddressesFrom(c);
 						}
 
@@ -92,7 +92,7 @@ namespace Turn.Server
 							if (pseudoTlsMessage.IsClientHello(e.Buffer, e.Offset) == false)
 								return false;
 
-							var x = s.BuffersPool.Get();
+							var x = EventArgsManager.Get();
 
 							x.CopyAddressesFrom(e);
 							x.Count = PseudoTlsMessage.ServerHelloHelloDoneLength;
