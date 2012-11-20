@@ -50,7 +50,7 @@
     <Compile Include="Authentificater.cs" />
     <Compile Include="Authentificater.NonceDescriptor.cs" />
     <Compile Include="TurnConnection.cs" />
-    <Compile Include="ConnectionId.cs" />
+    <Compile Include="ConnectionIdGenerator.cs" />
     <Compile Include="Enums.cs" />
     <Compile Include="ILogger.cs" />
     <Compile Include="PeerConnection.cs" />

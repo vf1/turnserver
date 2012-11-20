@@ -18,9 +18,6 @@ namespace Turn.Server
 
 		private AllocationsPool allocations;
 
-		private HMACSHA1 conIdSha1;
-		private UTF8Encoding conIdUtf8;
-
 		private ILogger logger;
 
 		public TurnServer(ILogger logger)
@@ -52,11 +49,14 @@ namespace Turn.Server
 
 						if (Authentificater.Process(request, out response))
 						{
-							ConnectionId connectionId = request.GetConnectionId();
+							//ConnectionId connectionId = request.GetConnectionId();
+							//Allocation allocation = null;
+							//if (connectionId != null)
+							//    allocation = allocations.Get(connectionId);
 
 							Allocation allocation = null;
-							if (connectionId != null)
-								allocation = allocations.Get(connectionId);
+							if (request.MsSequenceNumber != null)
+								allocation = allocations.Get(request.MsSequenceNumber.ConnectionId);
 
 							if (allocation != null)
 							{
@@ -305,7 +305,7 @@ namespace Turn.Server
 
 				MsSequenceNumber = new MsSequenceNumber()
 				{
-					ConnectionId = allocation.ConnectionId.Value,
+					ConnectionId = allocation.ConnectionId,
 					SequenceNumber = allocation.SequenceNumber,
 				},
 			};
@@ -379,7 +379,7 @@ namespace Turn.Server
 
 				MsSequenceNumber = new MsSequenceNumber()
 				{
-					ConnectionId = allocation.ConnectionId.Value,
+					ConnectionId = allocation.ConnectionId,
 					SequenceNumber = allocation.SequenceNumber,
 				},
 			};
@@ -453,15 +453,15 @@ namespace Turn.Server
 
 		private ConnectionId GenerateConnectionId(ServerEndPoint reflexive, IPEndPoint local)
 		{
-			lock (conIdSha1)
-			{
-				string hashData = reflexive.ToString() + local.ToString();
+			return ConnectionIdGenerator.Generate(reflexive, local);
 
-				return new ConnectionId()
-				{
-					Value = conIdSha1.ComputeHash(conIdUtf8.GetBytes(hashData)),
-				};
-			}
+			//return new ConnectionId(reflexive, local);
+			//lock (conIdSha1)
+			//{
+			//    string hashData = reflexive.ToString() + local.ToString();
+
+			//    return new ConnectionId(conIdSha1.ComputeHash(conIdUtf8.GetBytes(hashData)));
+			//}
 		}
 
 		public void Start()
@@ -471,10 +471,10 @@ namespace Turn.Server
 				if (PublicIp == null)
 					throw new Exception("Invalid Public IP");
 
-				byte[] sha1Key = new byte[8];
-				(new Random(Environment.TickCount)).NextBytes(sha1Key);
-				conIdSha1 = new HMACSHA1(sha1Key);
-				conIdUtf8 = new UTF8Encoding();
+				//byte[] sha1Key = new byte[8];
+				//(new Random(Environment.TickCount)).NextBytes(sha1Key);
+				//conIdSha1 = new HMACSHA1(sha1Key);
+				//conIdUtf8 = new UTF8Encoding();
 
 				allocations = new AllocationsPool();
 				allocations.Removed += Allocation_Removed;
@@ -519,13 +519,13 @@ namespace Turn.Server
 					turnServer = null;
 				}
 
-				if (conIdSha1 != null)
-				{
-					conIdSha1.Clear();
-					conIdSha1 = null;
-				}
+				//if (conIdSha1 != null)
+				//{
+				//    conIdSha1.Clear();
+				//    conIdSha1 = null;
+				//}
 
-				conIdUtf8 = null;
+				//conIdUtf8 = null;
 
 				Authentificater = null;
 			}
