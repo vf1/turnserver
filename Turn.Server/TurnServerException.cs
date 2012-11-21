@@ -18,5 +18,10 @@ namespace Turn.Server
 		}
 
 		public ErrorCode ErrorCode { get; set; }
+
+		public override string Message 
+		{
+			get { return ErrorCode.ToString(); }
+		}
 	}
 }

@@ -12,7 +12,7 @@ namespace Turn.Server
 {
 	public partial class TurnServer
 	{
-		private object syncRoot;
+		//private object syncRoot;
 		private ServersManager<TurnConnection> turnServer;
 		private ServersManager<PeerConnection> peerServer;
 
@@ -22,7 +22,7 @@ namespace Turn.Server
 
 		public TurnServer(ILogger logger)
 		{
-			this.syncRoot = new object();
+			//this.syncRoot = new object();
 			this.logger = logger ?? new NullLogger();
 		}
 
@@ -37,7 +37,7 @@ namespace Turn.Server
 
 		private void TurnServer_TurnDataReceived(ref ServerAsyncEventArgs e)
 		{
-			lock (syncRoot)
+			//lock (syncRoot)
 			{
 				TurnMessage response = null;
 
@@ -49,11 +49,6 @@ namespace Turn.Server
 
 						if (Authentificater.Process(request, out response))
 						{
-							//ConnectionId connectionId = request.GetConnectionId();
-							//Allocation allocation = null;
-							//if (connectionId != null)
-							//    allocation = allocations.Get(connectionId);
-
 							Allocation allocation = null;
 							if (request.MsSequenceNumber != null)
 								allocation = allocations.Get(request.MsSequenceNumber.ConnectionId);
@@ -117,7 +112,7 @@ namespace Turn.Server
 
 		private void TurnServer_PeerDataReceived(ref ServerAsyncEventArgs e)
 		{
-			lock (syncRoot)
+			//lock (syncRoot)
 			{
 				try
 				{
@@ -149,7 +144,7 @@ namespace Turn.Server
 
 		private bool PeerServer_Received(ServersManager<PeerConnection> s, BaseConnection с, ref ServerAsyncEventArgs e)
 		{
-			lock (syncRoot)
+			//lock (syncRoot)
 			{
 				try
 				{
@@ -251,7 +246,7 @@ namespace Turn.Server
 					allocation = new Allocation()
 					{
 						TransactionId = request.TransactionId,
-						ConnectionId = GenerateConnectionId(local, remote),
+						ConnectionId = ConnectionIdGenerator.Generate(local, remote),
 
 						Local = local,
 						Alocated = new ServerEndPoint(pp, PublicIp),
@@ -451,30 +446,20 @@ namespace Turn.Server
 				logger.WriteWarning(String.Format(@"SendTurn Failed\r\nSocket Type {0}:\r\nError: {1}", socket.SocketType.ToString(), e.ToString()));
 		}
 
-		private ConnectionId GenerateConnectionId(ServerEndPoint reflexive, IPEndPoint local)
+		public void EnableLog(string fileName)
 		{
-			return ConnectionIdGenerator.Generate(reflexive, local);
-
-			//return new ConnectionId(reflexive, local);
-			//lock (conIdSha1)
-			//{
-			//    string hashData = reflexive.ToString() + local.ToString();
-
-			//    return new ConnectionId(conIdSha1.ComputeHash(conIdUtf8.GetBytes(hashData)));
-			//}
+			if (string.IsNullOrEmpty(fileName) == false)
+				turnServer.Logger.Enable(fileName);
+			else
+				turnServer.Logger.Disable();
 		}
 
 		public void Start()
 		{
-			lock (syncRoot)
+			//lock (syncRoot)
 			{
 				if (PublicIp == null)
 					throw new Exception("Invalid Public IP");
-
-				//byte[] sha1Key = new byte[8];
-				//(new Random(Environment.TickCount)).NextBytes(sha1Key);
-				//conIdSha1 = new HMACSHA1(sha1Key);
-				//conIdUtf8 = new UTF8Encoding();
 
 				allocations = new AllocationsPool();
 				allocations.Removed += Allocation_Removed;
@@ -504,7 +489,7 @@ namespace Turn.Server
 
 		public void Stop()
 		{
-			lock (syncRoot)
+			//lock (syncRoot)
 			{
 				if (allocations != null)
 				{
@@ -518,14 +503,6 @@ namespace Turn.Server
 					turnServer.Dispose();
 					turnServer = null;
 				}
-
-				//if (conIdSha1 != null)
-				//{
-				//    conIdSha1.Clear();
-				//    conIdSha1 = null;
-				//}
-
-				//conIdUtf8 = null;
 
 				Authentificater = null;
 			}

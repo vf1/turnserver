@@ -74,15 +74,15 @@ namespace Turn.Server
 		{
 			lock (sync)
 			{
-				Array.Copy(serverHelloHelloDoneTemplate, 0,
+				Buffer.BlockCopy(serverHelloHelloDoneTemplate, 0,
 					bytes, startIndex, serverHelloHelloDoneTemplate.Length);
 
-				Array.Copy(BitConverter.GetBytes((Int32)Math.Floor((DateTime.UtcNow - originDateTime).TotalSeconds)),
+				Buffer.BlockCopy(BitConverter.GetBytes((Int32)Math.Floor((DateTime.UtcNow - originDateTime).TotalSeconds)),
 					0, bytes, startIndex + 11, 4);
 
 				random.NextBytes(randomValue);
 
-				Array.Copy(randomValue, 0, bytes, startIndex + 15, 28);
+				Buffer.BlockCopy(randomValue, 0, bytes, startIndex + 15, 28);
 			}
 		}
 
