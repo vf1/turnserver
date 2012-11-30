@@ -472,7 +472,7 @@ namespace Turn.Server
 				turnServer.Bind(new ProtocolPort() { Protocol = ServerProtocol.Tcp, Port = TurnPseudoTlsPort, });
 				turnServer.NewConnection += TurnServer_NewConnection;
 				turnServer.Received += TurnServer_Received;
-				turnServer.Start();
+				turnServer.Start(true);
 
 				peerServer = new ServersManager<PeerConnection>(
 					new ServersManagerConfig()
@@ -482,7 +482,7 @@ namespace Turn.Server
 					});
 				peerServer.AddressPredicate = (i, ip, ai) => { return ai.Address.Equals(RealIp); };
 				peerServer.Received += PeerServer_Received;
-				peerServer.Start();
+				peerServer.Start(true);
 			}
 		}
 
