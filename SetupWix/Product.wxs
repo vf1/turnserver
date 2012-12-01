@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:netfx="http://schemas.microsoft.com/wix/NetFxExtension">
+
+	<Product Name="OfficeSIP TURN Server" Version="1.1.0.0" Language="1033" Manufacturer="OfficeSIP Communications" Id="C1E62DA1-F182-4CE4-91A1-80B5AFABA10F" UpgradeCode="3F414655-D602-47A6-84F6-9EAFE4A9A505">
+		
+    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+
+		<MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+
+    <MediaTemplate/>
+
+    <Feature Id="Complete" Title="Server" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+    </Feature>
+
+    <!-- Check for .NET Framework Versions -->
+    <PropertyRef Id="NETFRAMEWORK35_SP_LEVEL"/>
+    <Condition Message="This application requires .NET Framework 3.5 SP1. Please install the .NET Framework then run this installer again.">
+      <![CDATA[Installed OR (NETFRAMEWORK35_SP_LEVEL and NOT NETFRAMEWORK35_SP_LEVEL = "#0")]]>
+    </Condition>
+
+    <!-- Installer's Icon in Add/Remove Programs -->
+    <Icon Id="Main.ico" SourceFile="..\Service\Properties\Main.ico"/>
+    <Property Id="ARPPRODUCTICON" Value="Main.ico" />
+
+    <!-- UI -->
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <UIRef Id="WixUI_InstallDir" />
+    <UIRef Id="WixUI_ErrorProgressText" />
+
+  </Product>
+  
+	<Fragment>
+		<Directory Id="TARGETDIR" Name="SourceDir">
+			<Directory Id="ProgramFilesFolder">
+        <Directory Id="INSTALLFOLDER" Name="OfficeSIP TURN Server" />
+			</Directory>
+      <Directory Id="DesktopFolder" Name="Desktop" />
+    </Directory>
+	</Fragment>
+
+	<Fragment>
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <Component Id="Service" Guid="A09B65D5-6EF3-47B5-A628-669405C68840">
+        <File Source="..\Service\bin\Release\SocketServers.dll"></File>
+        <File Source="..\Service\bin\Release\Turn.Message.dll"></File>
+        <File Source="..\Service\bin\Release\Turn.Server.dll"></File>
+        <File Source="..\Service\bin\Release\TurnServerService.exe"></File>
+      </Component>
+      <Component Id="Urls" Guid="BD31D39D-F99A-4A7B-800B-A6745722065C">
+        <File Source="..\Service\Properties\OfficeSIP.url">
+          <Shortcut Id="DesktopUrl" Directory="DesktopFolder" Name="OfficeSIP TURN Server Homepage" Advertise="yes"></Shortcut>
+        </File>
+      </Component>
+		</ComponentGroup>
+	</Fragment>
+  
+</Wix>

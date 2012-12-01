@@ -102,6 +102,10 @@
       <Install>true</Install>
     </BootstrapperPackage>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Properties\Main.ico" />
+    <None Include="Properties\OfficeSIP.url" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!--
   <Target Name="BeforeClean" DependsOnTargets="StopRunning">
