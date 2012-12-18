@@ -20,7 +20,6 @@ namespace Turn.Server
         public delegate void AllocationsPoolDelegate(Allocation allocation, RemoveReason reason);
 
         private object syncRoot;
-        //private Dictionary<TransactionId, Allocation> byTransactionId;
         private Dictionary<ServerEndPoint, Allocation> byAllocated;
         private Dictionary<ServerEndPoint, Allocation> byReal;
         private Dictionary<ConnectionId, Allocation> byConnectionId;
@@ -30,7 +29,6 @@ namespace Turn.Server
         public AllocationsPool()
         {
             syncRoot = new object();
-            //byTransactionId = new Dictionary<TransactionId, Allocation>();
             byAllocated = new Dictionary<ServerEndPoint, Allocation>();
             byReal = new Dictionary<ServerEndPoint, Allocation>();
             byConnectionId = new Dictionary<ConnectionId, Allocation>();
@@ -48,16 +46,14 @@ namespace Turn.Server
             {
                 var key = GetKey(allocation.Local, allocation.Reflexive);
 
-                if (byKey.TryGetValue(key, out oldAllocation))// || byTransactionId.TryGetValue(allocation.TransactionId, out oldAllocation))
+                if (byKey.TryGetValue(key, out oldAllocation))
                 {
-                    //byTransactionId.Remove(oldAllocation.TransactionId);
                     byAllocated.Remove(oldAllocation.Alocated);
                     byReal.Remove(oldAllocation.Real);
                     byConnectionId.Remove(oldAllocation.ConnectionId);
                     byKey.Remove(key);
                 }
 
-                //byTransactionId.Add(allocation.TransactionId, allocation);
                 byAllocated.Add(allocation.Alocated, allocation);
                 byReal.Add(allocation.Real, allocation);
                 byConnectionId.Add(allocation.ConnectionId, allocation);
@@ -72,7 +68,6 @@ namespace Turn.Server
         {
             lock (syncRoot)
             {
-                //byTransactionId.Remove(oldAllocation.TransactionId);
                 byAllocated.Remove(oldAllocation.Alocated);
                 byReal.Remove(oldAllocation.Real);
                 byConnectionId.Remove(oldAllocation.ConnectionId);
@@ -88,14 +83,6 @@ namespace Turn.Server
 
             lock (syncRoot)
             {
-                //if (byTransactionId.Values.Count > 0)
-                //{
-                //    removeList = new Allocation[byTransactionId.Values.Count];
-                //    byTransactionId.Values.CopyTo(removeList, 0);
-                //}
-
-                //byTransactionId.Clear();
-
                 if (byAllocated.Values.Count > 0)
                 {
                     removeList = new Allocation[byAllocated.Values.Count];
@@ -112,16 +99,6 @@ namespace Turn.Server
                 foreach (var allocation in removeList)
                     OnRemoved(allocation, RemoveReason.Stopping);
         }
-
-        //public Allocation Get(TransactionId transactionId)
-        //{
-        //    Allocation allocation = null;
-
-        //    lock (syncRoot)
-        //        byTransactionId.TryGetValue(transactionId, out allocation);
-
-        //    return allocation != null && allocation.IsValid() ? allocation : null;
-        //}
 
         public Allocation Get(ServerEndPoint allocated)
         {
@@ -155,16 +132,6 @@ namespace Turn.Server
 
             return allocation != null && allocation.IsValid() ? allocation : null;
         }
-
-        //public Allocation GetByPeer(ServerEndPoint local, IPEndPoint remote)
-        //{
-        //    Allocation allocation = null;
-
-        //    lock (syncRoot)
-        //        allocations4.TryGetValue(GetKey(local, remote), out allocation);
-
-        //    return allocation != null && allocation.IsValid() ? allocation : null;
-        //}
 
         public int Count
         {

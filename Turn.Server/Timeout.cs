@@ -10,6 +10,6 @@ namespace Turn.Server
 
 	class DefaultLifetime
 	{
-		public const int Seconds = 300;
+		public const int Seconds = 120;
 	}
 }
