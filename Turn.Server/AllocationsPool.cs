@@ -8,198 +8,203 @@ using SocketServers;
 
 namespace Turn.Server
 {
-	class AllocationsPool
-	{
-		public delegate void AllocationsPoolDelegate(Allocation allocation);
+    class AllocationsPool
+    {
+        public enum RemoveReason
+        {
+            Timeout,
+            Replace,
+            Stopping,
+        }
 
-		private object syncRoot;
-		private Dictionary<TransactionId, Allocation> allocations1;
-		private Dictionary<ServerEndPoint, Allocation> byAllocated;
-		private Dictionary<ServerEndPoint, Allocation> byReal;
-		private Dictionary<ConnectionId, Allocation> allocations3;
-		private Dictionary<string, Allocation> allocations4;
-		private Timer timer;
+        public delegate void AllocationsPoolDelegate(Allocation allocation, RemoveReason reason);
 
-		public AllocationsPool()
-		{
-			syncRoot = new object();
-			allocations1 = new Dictionary<TransactionId, Allocation>();
-			byAllocated = new Dictionary<ServerEndPoint, Allocation>();
-			byReal = new Dictionary<ServerEndPoint, Allocation>();
-			allocations3 = new Dictionary<ConnectionId, Allocation>();
-			allocations4 = new Dictionary<string, Allocation>();
-			timer = new Timer(Timer_EventHandler, null, 0, 10000);
-		}
+        private object syncRoot;
+        //private Dictionary<TransactionId, Allocation> byTransactionId;
+        private Dictionary<ServerEndPoint, Allocation> byAllocated;
+        private Dictionary<ServerEndPoint, Allocation> byReal;
+        private Dictionary<ConnectionId, Allocation> byConnectionId;
+        private Dictionary<string, Allocation> byKey;
+        private Timer timer;
 
-		public event AllocationsPoolDelegate Removed;
+        public AllocationsPool()
+        {
+            syncRoot = new object();
+            //byTransactionId = new Dictionary<TransactionId, Allocation>();
+            byAllocated = new Dictionary<ServerEndPoint, Allocation>();
+            byReal = new Dictionary<ServerEndPoint, Allocation>();
+            byConnectionId = new Dictionary<ConnectionId, Allocation>();
+            byKey = new Dictionary<string, Allocation>();
+            timer = new Timer(Timer_EventHandler, null, 0, 10000);
+        }
 
-		public void Replace(Allocation allocation)
-		{
-			Allocation oldAllocation;
+        public event AllocationsPoolDelegate Removed;
 
-			lock (syncRoot)
-			{
-				var key = GetKey(allocation.Local, allocation.Reflexive);
+        public void Replace(Allocation allocation)
+        {
+            Allocation oldAllocation;
 
-				if (allocations4.TryGetValue(key, out oldAllocation))
-				{
-					allocations1.Remove(oldAllocation.TransactionId);
-					byAllocated.Remove(oldAllocation.Alocated);
-					byReal.Remove(oldAllocation.Real);
-					allocations3.Remove(oldAllocation.ConnectionId);
-					allocations4.Remove(key);
-				}
+            lock (syncRoot)
+            {
+                var key = GetKey(allocation.Local, allocation.Reflexive);
 
-				allocations1.Add(allocation.TransactionId, allocation);
-				byAllocated.Add(allocation.Alocated, allocation);
-				byReal.Add(allocation.Real, allocation);
-				allocations3.Add(allocation.ConnectionId, allocation);
-				allocations4.Add(key, allocation);
-			}
+                if (byKey.TryGetValue(key, out oldAllocation))// || byTransactionId.TryGetValue(allocation.TransactionId, out oldAllocation))
+                {
+                    //byTransactionId.Remove(oldAllocation.TransactionId);
+                    byAllocated.Remove(oldAllocation.Alocated);
+                    byReal.Remove(oldAllocation.Real);
+                    byConnectionId.Remove(oldAllocation.ConnectionId);
+                    byKey.Remove(key);
+                }
 
-			if (oldAllocation != null)
-				OnRemoved(oldAllocation);
-		}
+                //byTransactionId.Add(allocation.TransactionId, allocation);
+                byAllocated.Add(allocation.Alocated, allocation);
+                byReal.Add(allocation.Real, allocation);
+                byConnectionId.Add(allocation.ConnectionId, allocation);
+                byKey.Add(key, allocation);
+            }
 
-		public void Remove(Allocation oldAllocation)
-		{
-			lock (syncRoot)
-			{
-				allocations1.Remove(oldAllocation.TransactionId);
-				byAllocated.Remove(oldAllocation.Alocated);
-				allocations3.Remove(oldAllocation.ConnectionId);
-				allocations4.Remove(GetKey(oldAllocation.Local, oldAllocation.Reflexive));
-			}
+            if (oldAllocation != null)
+                OnRemoved(oldAllocation, RemoveReason.Replace);
+        }
 
-			OnRemoved(oldAllocation);
-		}
+        public void Remove(Allocation oldAllocation, RemoveReason reason)
+        {
+            lock (syncRoot)
+            {
+                //byTransactionId.Remove(oldAllocation.TransactionId);
+                byAllocated.Remove(oldAllocation.Alocated);
+                byReal.Remove(oldAllocation.Real);
+                byConnectionId.Remove(oldAllocation.ConnectionId);
+                byKey.Remove(GetKey(oldAllocation.Local, oldAllocation.Reflexive));
+            }
 
-		public void Clear()
-		{
-			Allocation[] removeList = null;
+            OnRemoved(oldAllocation, reason);
+        }
 
-			lock (syncRoot)
-			{
-				if (allocations1.Values.Count > 0)
-				{
-					removeList = new Allocation[allocations1.Values.Count];
-					allocations1.Values.CopyTo(removeList, 0);
-				}
+        public void Clear()
+        {
+            Allocation[] removeList = null;
 
-				allocations1.Clear();
-				byAllocated.Clear();
-				allocations3.Clear();
-				allocations4.Clear();
-			}
+            lock (syncRoot)
+            {
+                //if (byTransactionId.Values.Count > 0)
+                //{
+                //    removeList = new Allocation[byTransactionId.Values.Count];
+                //    byTransactionId.Values.CopyTo(removeList, 0);
+                //}
 
-			if (removeList != null)
-				foreach (var allocation in removeList)
-					OnRemoved(allocation);
-		}
+                //byTransactionId.Clear();
 
-		public Allocation Get(TransactionId transactionId)
-		{
-			Allocation allocation = null;
+                if (byAllocated.Values.Count > 0)
+                {
+                    removeList = new Allocation[byAllocated.Values.Count];
+                    byAllocated.Values.CopyTo(removeList, 0);
+                }
 
-			lock (syncRoot)
-				allocations1.TryGetValue(transactionId, out allocation);
+                byAllocated.Clear();
+                byReal.Clear();
+                byConnectionId.Clear();
+                byKey.Clear();
+            }
 
-			return allocation != null && allocation.IsValid() ? allocation : null;
-		}
+            if (removeList != null)
+                foreach (var allocation in removeList)
+                    OnRemoved(allocation, RemoveReason.Stopping);
+        }
 
-		public Allocation Get(ServerEndPoint allocated)
-		{
-			Allocation allocation = null;
+        //public Allocation Get(TransactionId transactionId)
+        //{
+        //    Allocation allocation = null;
 
-			lock (syncRoot)
-			{
-				if (byAllocated.TryGetValue(allocated, out allocation) == false)
-					byReal.TryGetValue(allocated, out allocation);
-			}
+        //    lock (syncRoot)
+        //        byTransactionId.TryGetValue(transactionId, out allocation);
 
-			return allocation != null && allocation.IsValid() ? allocation : null;
-		}
+        //    return allocation != null && allocation.IsValid() ? allocation : null;
+        //}
 
-		public Allocation Get(ConnectionId connectionId)
-		{
-			Allocation allocation = null;
+        public Allocation Get(ServerEndPoint allocated)
+        {
+            Allocation allocation = null;
 
-			lock (syncRoot)
-				allocations3.TryGetValue(connectionId, out allocation);
+            lock (syncRoot)
+            {
+                if (byAllocated.TryGetValue(allocated, out allocation) == false)
+                    byReal.TryGetValue(allocated, out allocation);
+            }
 
-			return allocation != null && allocation.IsValid() ? allocation : null;
-		}
+            return allocation != null && allocation.IsValid() ? allocation : null;
+        }
 
-		public Allocation GetByTurn(ServerEndPoint local, IPEndPoint remote)
-		{
-			Allocation allocation = null;
+        public Allocation Get(ConnectionId connectionId)
+        {
+            Allocation allocation = null;
 
-			lock (syncRoot)
-				allocations4.TryGetValue(GetKey(local, remote), out allocation);
+            lock (syncRoot)
+                byConnectionId.TryGetValue(connectionId, out allocation);
 
-			return allocation != null && allocation.IsValid() ? allocation : null;
-		}
+            return allocation != null && allocation.IsValid() ? allocation : null;
+        }
 
-		public Allocation GetByPeer(ServerEndPoint local, IPEndPoint remote)
-		{
-			Allocation allocation = null;
+        public Allocation GetByPeer(ServerEndPoint local, IPEndPoint remote)
+        {
+            Allocation allocation = null;
 
-			lock (syncRoot)
-				allocations4.TryGetValue(GetKey(local, remote), out allocation);
+            lock (syncRoot)
+                byKey.TryGetValue(GetKey(local, remote), out allocation);
 
-			return allocation != null && allocation.IsValid() ? allocation : null;
-		}
+            return allocation != null && allocation.IsValid() ? allocation : null;
+        }
 
-		public int Count
-		{
-			get
-			{
-				lock (syncRoot)
-					return allocations1.Count;
-			}
-		}
+        //public Allocation GetByPeer(ServerEndPoint local, IPEndPoint remote)
+        //{
+        //    Allocation allocation = null;
 
-		private string GetKey(ServerEndPoint local, IPEndPoint remote)
-		{
-			return local.ToString() + @"|" + remote.ToString();
-		}
+        //    lock (syncRoot)
+        //        allocations4.TryGetValue(GetKey(local, remote), out allocation);
 
-		private void Timer_EventHandler(Object stateInfo)
-		{
-			List<Allocation> removeList = null;
+        //    return allocation != null && allocation.IsValid() ? allocation : null;
+        //}
 
-			lock (syncRoot)
-			{
-				int now = Environment.TickCount;
+        public int Count
+        {
+            get
+            {
+                lock (syncRoot)
+                    return byAllocated.Count;
+            }
+        }
 
-				foreach (var tuple in allocations1)
-					if (tuple.Value.IsValid(now) == false)
-					{
-						if (removeList == null)
-							removeList = new List<Allocation>();
-						removeList.Add(tuple.Value);
-					}
-			}
+        private string GetKey(ServerEndPoint local, IPEndPoint remote)
+        {
+            return local.ToString() + @"|" + remote.ToString();
+        }
 
-			if (removeList != null)
-				foreach (var allocation in removeList)
-					Remove(allocation);
-		}
+        private void Timer_EventHandler(Object stateInfo)
+        {
+            List<Allocation> removeList = null;
 
-		private void OnRemoved(Allocation allocation)
-		{
-#if DEBUG
-			try
-			{
-				Monitor.Exit(syncRoot);
-				throw new Exception("Deadlock Warning!");
-			}
-			catch (SynchronizationLockException)
-			{
-			}
-#endif
+            lock (syncRoot)
+            {
+                int now = Environment.TickCount;
 
-			Removed(allocation);
-		}
-	}
+                foreach (var tuple in byAllocated)
+                    if (tuple.Value.IsValid(now) == false)
+                    {
+                        if (removeList == null)
+                            removeList = new List<Allocation>();
+                        removeList.Add(tuple.Value);
+                    }
+            }
+
+            if (removeList != null)
+                foreach (var allocation in removeList)
+                    Remove(allocation, RemoveReason.Timeout);
+        }
+
+        private void OnRemoved(Allocation allocation, RemoveReason reason)
+        {
+            Removed(allocation, reason);
+        }
+    }
 }

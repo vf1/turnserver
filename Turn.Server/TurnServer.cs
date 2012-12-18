@@ -116,7 +116,7 @@ namespace Turn.Server
 			{
 				try
 				{
-					Allocation allocation = allocations.GetByTurn(e.LocalEndPoint, e.RemoteEndPoint);
+					Allocation allocation = allocations.GetByPeer(e.LocalEndPoint, e.RemoteEndPoint);
 
 					if (allocation != null)
 					{
@@ -216,9 +216,10 @@ namespace Turn.Server
 			return true;
 		}
 
-		private void Allocation_Removed(Allocation allocation)
+		private void Allocation_Removed(Allocation allocation, AllocationsPool.RemoveReason reason)
 		{
-			peerServer.Unbind(allocation.Alocated.ProtocolPort);
+            logger.WriteInformation(string.Format("Allocation Terminated: {0} <--> {1}, {2}", allocation.Alocated.ToString(), allocation.Reflexive.ToString(), reason.ToString()));
+            peerServer.Unbind(allocation.Alocated.ProtocolPort);
 		}
 
 		private TurnMessage ProcessAllocateRequest(ref Allocation allocation, TurnMessage request, ServerEndPoint local, IPEndPoint remote)
@@ -239,9 +240,9 @@ namespace Turn.Server
 					if (lifetime <= 0)
 						throw new TurnServerException(ErrorCode.NoBinding);
 
-					ProtocolPort pp = new ProtocolPort() { Protocol = local.Protocol, };
-					if (peerServer.Bind(ref pp) != SocketError.Success)
-						throw new TurnServerException(ErrorCode.ServerError);
+                    ProtocolPort pp = new ProtocolPort() { Protocol = local.Protocol, };
+                    if (peerServer.Bind(ref pp) != SocketError.Success)
+                        throw new TurnServerException(ErrorCode.ServerError);
 
 					allocation = new Allocation()
 					{
@@ -258,7 +259,7 @@ namespace Turn.Server
 
 					allocations.Replace(allocation);
 
-					logger.WriteInformation(string.Format("Allocated: {0} <--> {1}", allocation.Alocated.ToString(), allocation.Reflexive.ToString()));
+                    logger.WriteInformation(string.Format("Allocated: {0} <--> {1} for {2} seconds", allocation.Alocated.ToString(), allocation.Reflexive.ToString(), allocation.Lifetime));
 				}
 			}
 
@@ -472,6 +473,8 @@ namespace Turn.Server
 				turnServer.Bind(new ProtocolPort() { Protocol = ServerProtocol.Tcp, Port = TurnPseudoTlsPort, });
 				turnServer.NewConnection += TurnServer_NewConnection;
 				turnServer.Received += TurnServer_Received;
+                turnServer.ServerAdded += TurnServer_ServerAdded;
+                turnServer.ServerRemoved += TurnServer_ServerRemoved;
 				turnServer.Start(true);
 
 				peerServer = new ServersManager<PeerConnection>(
@@ -483,9 +486,30 @@ namespace Turn.Server
 				peerServer.AddressPredicate = (i, ip, ai) => { return ai.Address.Equals(RealIp); };
 				peerServer.Received += PeerServer_Received;
 				peerServer.Start(true);
-			}
+                peerServer.ServerAdded += PeerServer_ServerAdded;
+                peerServer.ServerRemoved += PeerServer_ServerRemoved;
+            }
 		}
 
+        private void TurnServer_ServerAdded(object sender, ServerChangeEventArgs e)
+        {
+            logger.WriteInformation(string.Format("TURN server listen: {0}", e.ServerEndPoint.ToString()));
+        }
+
+        private void TurnServer_ServerRemoved(object sender, ServerChangeEventArgs e)
+        {
+            logger.WriteInformation(string.Format("TURN server address removed: {0}", e.ServerEndPoint.ToString()));
+        }
+
+        private void PeerServer_ServerAdded(object sender, ServerChangeEventArgs e)
+        {
+            logger.WriteInformation(string.Format("PEER added: {0}", e.ServerEndPoint.ToString()));
+        }
+
+        private void PeerServer_ServerRemoved(object sender, ServerChangeEventArgs e)
+        {
+            logger.WriteInformation(string.Format("PEER removed: {0}", e.ServerEndPoint.ToString()));
+        }
 
 		public void Stop()
 		{

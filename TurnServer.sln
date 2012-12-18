@@ -3,13 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Service", "Service\Service.csproj", "{07D625BB-36E6-4E0C-B2E0-83A865A4F61C}"
 EndProject
-Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "Setup1", "Setup1\Setup1.vdproj", "{360B3D78-0ACE-402E-A508-B9835BA75B18}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turn.Server", "Turn.Server\Turn.Server.csproj", "{905E7B67-9F48-404B-9B7F-C801372AC385}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turn.Server.Test", "Turn.Server.Test\Turn.Server.Test.csproj", "{2F545D97-B506-46D9-A71E-0F5821C692BD}"
 EndProject
-Project("{930C7802-8A8C-48F9-8165-68863BCCD9DD}") = "SetupWix", "SetupWix\SetupWix.wixproj", "{257CFD8D-433D-46B2-AF9D-552B9357CA34}"
+Project("{930C7802-8A8C-48F9-8165-68863BCCD9DD}") = "Setup", "Setup\Setup.wixproj", "{257CFD8D-433D-46B2-AF9D-552B9357CA34}"
 EndProject
 Global
 	GlobalSection(TestCaseManagementSettings) = postSolution
@@ -34,12 +32,6 @@ Global
 		{07D625BB-36E6-4E0C-B2E0-83A865A4F61C}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
 		{07D625BB-36E6-4E0C-B2E0-83A865A4F61C}.Release|Mixed Platforms.Build.0 = Release|Any CPU
 		{07D625BB-36E6-4E0C-B2E0-83A865A4F61C}.Release|x86.ActiveCfg = Release|Any CPU
-		{360B3D78-0ACE-402E-A508-B9835BA75B18}.Debug|Any CPU.ActiveCfg = Debug
-		{360B3D78-0ACE-402E-A508-B9835BA75B18}.Debug|Mixed Platforms.ActiveCfg = Debug
-		{360B3D78-0ACE-402E-A508-B9835BA75B18}.Debug|x86.ActiveCfg = Debug
-		{360B3D78-0ACE-402E-A508-B9835BA75B18}.Release|Any CPU.ActiveCfg = Release
-		{360B3D78-0ACE-402E-A508-B9835BA75B18}.Release|Mixed Platforms.ActiveCfg = Release
-		{360B3D78-0ACE-402E-A508-B9835BA75B18}.Release|x86.ActiveCfg = Release
 		{905E7B67-9F48-404B-9B7F-C801372AC385}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{905E7B67-9F48-404B-9B7F-C801372AC385}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{905E7B67-9F48-404B-9B7F-C801372AC385}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
