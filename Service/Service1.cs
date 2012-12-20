@@ -16,48 +16,23 @@ namespace Service
 		private WcfService.WcfTurnService wcfService;
 		private EventLog eventLog;
 		private FileStream fileLog;
-
-		public const string BaseServiceName = @"OfficeSIP Turn Server";
+        private string extension;
 
 		public Service1(string extension)
 		{
-			ServiceName = GetServiceName(extension);
+            this.ServiceName = @"OfficeSIP TURN Server";
+            this.extension = String.IsNullOrEmpty(extension) ? "N1" : extension;
 
-			eventLog = new EventLog(GetEventlogName(extension));
-			eventLog.Source = GetEventlogName(extension);
-		}
-
-		public static string GetValidExtension(string extension)
-		{
-			return String.IsNullOrEmpty(extension) ? "N1" : extension;
-		}
-
-		public static string GetServiceName(string extension)
-		{
-			return String.Format("{0} {1}", BaseServiceName, GetValidExtension(extension));
-		}
-
-		public static string GetDisplayName(string extension)
-		{
-			return GetServiceName(extension);
-		}
-
-		public static string GetDescription(string extension)
-		{
-			return GetServiceName(extension);
-		}
-
-		public static string GetEventlogName(string extension)
-		{
-			return String.Format("{1} {0}", @"Turn Server OfficeSIP", GetValidExtension(extension));
+            this.eventLog = new EventLog();
+            this.eventLog.Source = ServiceName;
 		}
 
 		public void Debug(string[] args)
 		{
 			const int mutexDelay = 1000;
 
-			Mutex mutex1 = new Mutex(false, @"{4A85555B-8675-4230-84A0-4C87FC234B42}-" + ServiceName.Replace(' ', '-'));
-			Mutex mutex2 = new Mutex(false, @"{2F36CC7D-4486-46fd-AB4F-44C5D2157B46}-" + ServiceName.Replace(' ', '-'));
+            Mutex mutex1 = new Mutex(false, @"{4A85555B-8675-4230-84A0-4C87FC234B42}-" + extension);
+            Mutex mutex2 = new Mutex(false, @"{2F36CC7D-4486-46fd-AB4F-44C5D2157B46}-" + extension);
 
 			mutex2.WaitOne();
 			bool anotherStopped = mutex1.WaitOne(mutexDelay * 5);

@@ -6,7 +6,7 @@
     <ProductVersion>3.6</ProductVersion>
     <ProjectGuid>257cfd8d-433d-46b2-af9d-552b9357ca34</ProjectGuid>
     <SchemaVersion>2.0</SchemaVersion>
-    <OutputName>officesip-turn-server-1.1</OutputName>
+    <OutputName>officesip-turn-server</OutputName>
     <OutputType>Package</OutputType>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' AND '$(MSBuildExtensionsPath32)' != '' ">$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' ">$(MSBuildExtensionsPath)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
@@ -25,6 +25,10 @@
     <Compile Include="Product.wxs" />
   </ItemGroup>
   <ItemGroup>
+    <WixExtension Include="WixUtilExtension">
+      <HintPath>$(WixExtDir)\WixUtilExtension.dll</HintPath>
+      <Name>WixUtilExtension</Name>
+    </WixExtension>
     <WixExtension Include="WixUIExtension">
       <HintPath>$(WixExtDir)\WixUIExtension.dll</HintPath>
       <Name>WixUIExtension</Name>
@@ -33,6 +37,11 @@
       <HintPath>$(WixExtDir)\WixNetFxExtension.dll</HintPath>
       <Name>WixNetFxExtension</Name>
     </WixExtension>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="bannrbmp.bmp" />
+    <Content Include="dlgbmp.bmp" />
+    <Content Include="License.rtf" />
   </ItemGroup>
   <Import Project="$(WixTargetsPath)" />
   <!--
@@ -43,4 +52,18 @@
 	<Target Name="AfterBuild">
 	</Target>
 	-->
+  <Target Name="BeforeBuild">
+    <GetAssemblyIdentity AssemblyFiles="$(SolutionDir)Service\bin\$(Configuration)\TurnServerService.exe">
+      <Output TaskParameter="Assemblies" ItemName="AssemblyVersions" />
+    </GetAssemblyIdentity>
+    <CreateProperty Value="$(OutputName)-$([System.Text.RegularExpressions.Regex]::Match(%(AssemblyVersions.Version).Value, '\d+\.\d+'))">
+      <Output TaskParameter="Value" PropertyName="TargetName" />
+    </CreateProperty>
+    <CreateProperty Value="$(TargetName)$(TargetExt)">
+      <Output TaskParameter="Value" PropertyName="TargetFileName" />
+    </CreateProperty>
+    <CreateProperty Value="$(TargetDir)$(TargetFileName)">
+      <Output TaskParameter="Value" PropertyName="TargetPath" />
+    </CreateProperty>
+  </Target>
 </Project>

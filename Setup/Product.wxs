@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
-     xmlns:netfx="http://schemas.microsoft.com/wix/NetFxExtension">
+     xmlns:netfx="http://schemas.microsoft.com/wix/NetFxExtension"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
-	<Product Name="OfficeSIP TURN Server" Version="1.1.0.0" Language="1033" Manufacturer="OfficeSIP Communications" Id="C1E62DA1-F182-4CE4-91A1-80B5AFABA10F" UpgradeCode="3F414655-D602-47A6-84F6-9EAFE4A9A505">
-		
+  <Product Name="OfficeSIP TURN Server" Version="!(bind.FileVersion.TurnServerServiceExe)" Language="1033" Manufacturer="OfficeSIP Communications" Id="C1E62DA1-F182-4CE4-91A1-80B5AFABA10F" UpgradeCode="3F414655-D602-47A6-84F6-9EAFE4A9A505">
+
     <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
 
-		<MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
-
-    <MediaTemplate/>
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
 
     <Feature Id="Complete" Title="Server" Level="1">
       <ComponentGroupRef Id="ProductComponents" />
+      <ComponentRef Id="DesktopUrl"/>
     </Feature>
 
     <!-- Check for .NET Framework Versions -->
@@ -28,32 +29,46 @@
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
     <UIRef Id="WixUI_InstallDir" />
     <UIRef Id="WixUI_ErrorProgressText" />
+    <WixVariable Id="WixUIDialogBmp" Value="dlgbmp.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="bannrbmp.bmp" />
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+
+    <!-- EventSource -->
+    <PropertyRef Id="NETFRAMEWORK20INSTALLROOTDIR"/>
 
   </Product>
-  
-	<Fragment>
-		<Directory Id="TARGETDIR" Name="SourceDir">
-			<Directory Id="ProgramFilesFolder">
+
+  <Fragment>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
         <Directory Id="INSTALLFOLDER" Name="OfficeSIP TURN Server" />
-			</Directory>
+      </Directory>
       <Directory Id="DesktopFolder" Name="Desktop" />
     </Directory>
-	</Fragment>
+  </Fragment>
 
-	<Fragment>
+  <Fragment>
     <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
       <Component Id="Service" Guid="A09B65D5-6EF3-47B5-A628-669405C68840">
         <File Source="..\Service\bin\Release\SocketServers.dll"></File>
         <File Source="..\Service\bin\Release\Turn.Message.dll"></File>
         <File Source="..\Service\bin\Release\Turn.Server.dll"></File>
-        <File Source="..\Service\bin\Release\TurnServerService.exe"></File>
+        <File Source="..\Certificate\OfficeSIP.pfx "></File>
+        <!-- ~~~~~~~ -->
+        <util:EventSource Log="Application" Name="OfficeSIP TURN Server" EventMessageFile="[NETFRAMEWORK20INSTALLROOTDIR]EventLogMessages.dll" />
+        <File Source="..\Service\bin\Release\TurnServerService.exe" Id="TurnServerServiceExe" KeyPath="yes"></File>
+        <ServiceInstall Id="ServiceInstall" Type="ownProcess" Vital="yes" Name="OfficeSIP TURN Server" Start="auto" Account="[SERVICEACCOUNT]" Password="[SERVICEPASSWORD]" ErrorControl="ignore" Interactive="no" Description="Service of the OfficeSIP TURN Server"></ServiceInstall>
+        <ServiceControl Id="StartService" Start="install" Stop="both" Remove="uninstall" Name="OfficeSIP TURN Server" Wait="yes" />
       </Component>
-      <Component Id="Urls" Guid="BD31D39D-F99A-4A7B-800B-A6745722065C">
-        <File Source="..\Service\Properties\OfficeSIP.url">
-          <Shortcut Id="DesktopUrl" Directory="DesktopFolder" Name="OfficeSIP TURN Server Homepage" Advertise="yes"></Shortcut>
-        </File>
-      </Component>
-		</ComponentGroup>
-	</Fragment>
-  
+    </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <Component Id="DesktopUrl" Guid="BD31D39D-F99A-4A7B-800B-A6745722065C" Directory="DesktopFolder">
+      <util:InternetShortcut Id="Homepage.Desktop" Name="OfficeSIP TURN Server Homepage" Target="http://www.officesip.com/" Type="url" />
+      <RegistryValue Root="HKCU" Key="Software\Microsoft\OfficeSIP TURN Server" Name="desktop" Type="integer" Value="1" KeyPath="yes"/>
+    </Component>
+  </Fragment>
+
+
 </Wix>
